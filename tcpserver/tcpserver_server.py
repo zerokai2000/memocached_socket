@@ -24,14 +24,15 @@ while True:
         # Receive the data in small chunks and retransmit it
         while True:
             data = connection.recv(16)
-            print('received {!r}'.format(data.decode('utf-8')))
+            data_str = data.decode('utf-8')
+            print('received {!r}'.format(data_str))
             if data:
                 if data.isdigit():
                     sleep_time = int(data)
-                    print('sleep {}(sec)'.format(data.decode('utf-8')))
+                    print('sleep {}(sec)'.format(data_str))
                     time.sleep(sleep_time)
                 else:
-                    print('{} is not digit'.format(data.decode('utf-8')))
+                    print('{} is not digit'.format(data_str))
 
                 print('sending data back to the client')
                 connection.sendall(data)
