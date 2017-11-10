@@ -4,10 +4,20 @@
 import logging
 import time
 import socketserver
+import signal
 
 logging.basicConfig(level=logging.DEBUG,
                     format='%(name)s: %(message)s',
                     )
+
+
+class SignalException(Exception):
+    def __init__(self, message):
+        super(SignalException, self).__init__(message)
+
+
+def do_exit(sig, stack):
+    raise SignalException("Exiting")
 
 
 class EchoRequestHandler(socketserver.BaseRequestHandler):
@@ -109,9 +119,17 @@ class EchoServer(socketserver.TCPServer):
 
 if __name__ == '__main__':
 
+    # シグナル
+    signal.signal(signal.SIGINT, do_exit)
+    signal.signal(signal.SIGHUP, do_exit)
+    signal.signal(signal.SIGTERM, do_exit)
+
     address = ('localhost', 10000)  # let the kernel assign a port
     server = EchoServer(address, EchoRequestHandler)
     try:
         server.serve_forever()
+    except SignalException as e:
+        print(e)
     finally:
+        server.shutdown()
         server.socket.close()

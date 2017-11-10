@@ -1,16 +1,24 @@
 # -*- coding: utf-8 -*-
 # vim:tabstop=4:shiftwidth=4:expandtab
 
-# -*- coding: utf-8 -*-
-# vim:tabstop=4:shiftwidth=4:expandtab
-
 import logging
 import time
 import socketserver
+import threading
+import signal
 
 logging.basicConfig(level=logging.DEBUG,
                     format='%(name)s: %(message)s',
                     )
+
+
+class SignalException(Exception):
+    def __init__(self, message):
+        super(SignalException, self).__init__(message)
+
+
+def do_exit(sig, stack):
+    raise SignalException("Exiting")
 
 
 class EchoRequestHandler(socketserver.BaseRequestHandler):
@@ -38,7 +46,9 @@ class EchoRequestHandler(socketserver.BaseRequestHandler):
             sleep_time = int(data_str)
             print('sleep {}(sec)'.format(data_str))
             time.sleep(sleep_time)
-        self.request.send(data)
+        cur_thread = threading.currentThread()
+        response = b'%s: %s' % (cur_thread.getName().encode(), data)
+        self.request.send(response)
         return
 
     def finish(self):
@@ -46,7 +56,7 @@ class EchoRequestHandler(socketserver.BaseRequestHandler):
         return socketserver.BaseRequestHandler.finish(self)
 
 
-class EchoServer(socketserver.TCPServer):
+class ThreadEchoServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
 
     def __init__(self, server_address,
                  handler_class=EchoRequestHandler,
@@ -111,40 +121,22 @@ class EchoServer(socketserver.TCPServer):
 
 
 if __name__ == '__main__':
-    import socket
-    import threading
+
+    # シグナル
+    signal.signal(signal.SIGINT, do_exit)
+    signal.signal(signal.SIGHUP, do_exit)
+    signal.signal(signal.SIGTERM, do_exit)
 
     address = ('localhost', 10000)  # let the kernel assign a port
-    server = EchoServer(address, EchoRequestHandler)
-    ip, port = server.server_address  # what port was assigned?
-
-    # Start the server in a thread
+    server = ThreadEchoServer(address, EchoRequestHandler)
     t = threading.Thread(target=server.serve_forever)
     t.setDaemon(True)  # don't hang on exit
-    t.start()
-
-    logger = logging.getLogger('client')
-    logger.info('Server on %s:%s', ip, port)
-
-    # Connect to the server
-    logger.debug('creating socket')
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    logger.debug('connecting to server')
-    s.connect((ip, port))
-
-    # Send the data
-    message = '5'.encode()
-    logger.debug('sending data: %r', message)
-    len_sent = s.send(message)
-
-    # Receive a response
-    logger.debug('waiting for response')
-    response = s.recv(len_sent)
-    logger.debug('response from server: %r', response)
-
-    # Clean up
-    server.shutdown()
-    logger.debug('closing socket')
-    s.close()
-    logger.debug('done')
-    server.socket.close()
+    try:
+        t.start()
+        print('Server loop running in thread:', t.getName())
+        server.serve_forever()
+    except SignalException as e1:
+        print(e1)
+    finally:
+        server.shutdown()
+        server.socket.close()
