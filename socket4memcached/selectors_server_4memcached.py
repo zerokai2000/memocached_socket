@@ -45,7 +45,7 @@ def read(connection, mask):
             time.sleep(sleep_time)
             connection.sendall(value.encode())
         else:
-            set_value = '{}_kaide'.format(data_str)
+            set_value = '{}_memcached'.format(data_str)
             mc.set(data_str, set_value, time=120)
             sleep_time = 1
             print('sleep {}(sec)'.format(sleep_time))
