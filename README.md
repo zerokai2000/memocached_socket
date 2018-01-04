@@ -6,4 +6,4 @@
     1.1. socketserver.TCPServer  
     1.2. socketserver.ForkingTCPServer  
     1.3. socketserver.ThreadingTCPServer  
-    1.4. selcetors  
+    1.4. selectors  
